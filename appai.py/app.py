@@ -1,63 +1,120 @@
 import streamlit as st
 from groq import Groq
+import time
 
-# --- Page Config ---
-st.set_page_config(page_title="My AI Problem Solver", page_icon="🤖")
-st.title("🤖 AI Problem Solver")
+# --- 1. Page Configuration ---
+st.set_page_config(
+    page_title="ELM AI",
+    page_icon="🌱",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-# --- Sidebar for Settings ---
-with st.sidebar:
-    st.markdown("### ⚙️ Settings")
-    # We use st.secrets for the API key when deployed, but allow input for local testing
-    api_key = st.text_input("Enter Groq API Key", type="password")
-    user_name = st.text_input("Your Name", "Visitor")
-    user_goal = st.text_area("What do you want to solve?", "General questions")
+# --- 2. Custom CSS for Dynamic UI & Animations ---
+st.markdown("""
+    <style>
+    /* Hide Streamlit Default Elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 
-    st.markdown("---")
-    st.info("💡 Powered by Groq & Streamlit (Free Tier)")
+    /* Main Background */
+    .stApp {
+        background-color: #0e1117;
+        color: #ffffff;
+    }
 
-# --- Initialize Chat History ---
+    /* Chat Bubble Styling */
+    .user-message {
+        background-color: #2b313f;
+        color: #ffffff;
+        padding: 10px 15px;
+        border-radius: 15px 15px 0 15px;
+        margin-bottom: 10px;
+        animation: fadeIn 0.5s ease;
+    }
+    .ai-message {
+        background-color: #1f2937;
+        color: #00ff9d; /* ELM Green Accent */
+        padding: 10px 15px;
+        border-radius: 15px 15px 15px 0;
+        margin-bottom:10px;
+        border-left: 3px solid #00ff9d;
+        animation: slideUp 0.5s ease;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Branding */
+    .elm-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #00ff9d;
+        text-align: center;
+        margin-bottom: 20px;
+        text-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- 3. Branding Header ---
+st.markdown('<div class="elm-title">🌱 ELM</div>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: #888;">Your Personal Intelligent Assistant</p>',
+            unsafe_allow_html=True)
+
+# --- 4. API Key Management (Secure) ---
+# Check if key exists in Secrets
+if "GROQ_API_KEY" in st.secrets:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+else:
+    st.error("⚠️ API Key not found. Please add it in Streamlit Secrets.")
+    st.stop()
+
+# --- 5. Chat Logic ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- Display Chat History ---
+# Display Chat History with Custom HTML
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    if message["role"] == "user":
+        st.markdown(f'<div class="user-message">{message["content"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="ai-message">{message["content"]}</div>', unsafe_allow_html=True)
 
-# --- Chat Logic ---
-if prompt := st.chat_input("Ask me anything..."):
-    if not api_key:
-        st.warning("Please enter your Groq API Key in the sidebar to start!")
-        st.stop()
-
-    # 1. Show user message
-    st.chat_message("user").markdown(prompt)
+# --- 6. Input Area ---
+if prompt := st.chat_input("Ask ELM anything..."):
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.markdown(f'<div class="user-message">{prompt}</div>', unsafe_allow_html=True)
 
-    # 2. Prepare Personalized System Prompt
-    system_instruction = f"""
-    You are a helpful AI assistant. 
-    User Name: {user_name}
-    User Goal: {user_goal}
-    Task: Answer questions personally and help solve real-world problems based on their goal.
-    Keep answers clear and actionable.
-    """
-
-    # 3. Get response from Groq API
+    # Generate Response
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            try:
-                client = Groq(api_key=api_key)
-                response = client.chat.completions.create(
-                    model="llama3-8b-8192",  # Free, fast model
-                    messages=[
-                        {"role": "system", "content": system_instruction},
-                        *st.session_state.messages
-                    ]
-                )
-                ai_reply = response.choices[0].message.content
-                st.markdown(ai_reply)
-                st.session_state.messages.append({"role": "assistant", "content": ai_reply})
-            except Exception as e:
-                st.error(f"Error: {e}")
+        try:
+            # System Prompt for Personalization
+            system_prompt = "You are ELM, a professional AI assistant. Be concise, helpful, and solve real-world problems."
+
+            stream = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages],
+                stream=True,  # Enables typing effect
+            )
+
+            # Streaming Response (Typing Effect)
+            response = st.write_stream(stream)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+
+        except Exception as e:
+            st.error(f"ELM encountered an error: {e}")
+
+# --- 7. Footer ---
+st.markdown("---")
+st.markdown('<p style="text-align: center; font-size: 0.8rem; color: #555;">Powered by ELM AI © 2024</p>',
+            unsafe_allow_html=True)
