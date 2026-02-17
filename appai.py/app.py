@@ -5,116 +5,165 @@ import time
 # --- 1. Page Configuration ---
 st.set_page_config(
     page_title="ELM AI",
-    page_icon="🌱",
+    page_icon="🟣",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. Custom CSS for Dynamic UI & Animations ---
+# --- 2. Custom CSS (Purple Theme & Animations) ---
 st.markdown("""
     <style>
-    /* Hide Streamlit Default Elements */
+    /* Hide Default Streamlit Elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Main Background */
+    /* Main Background - Deep Purple Gradient */
     .stApp {
-        background-color: #0e1117;
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         color: #ffffff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* Chat Bubble Styling */
-    .user-message {
-        background-color: #2b313f;
-        color: #ffffff;
-        padding: 10px 15px;
-        border-radius: 15px 15px 0 15px;
-        margin-bottom: 10px;
-        animation: fadeIn 0.5s ease;
+    /* Chat Input Container */
+    .stChatInputContainer {
+        background-color: rgba(48, 43, 99, 0.5);
+        border-radius: 15px;
+        padding: 10px;
+        border: 1px solid #b026ff;
+        box-shadow: 0 0 15px rgba(176, 38, 255, 0.3);
     }
-    .ai-message {
-        background-color: #1f2937;
-        color: #00ff9d; /* ELM Green Accent */
-        padding: 10px 15px;
+    
+    /* Chat Bubbles - User */
+    .stChatMessage[data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: rgba(76, 29, 149, 0.4);
+        border-radius: 15px 15px 0 15px;
+        border-left: 4px solid #7c3aed;
+    }
+    
+    /* Chat Bubbles - AI (ELM) */
+    .stChatMessage[data-testid="stChatMessage"]:nth-child(even) {
+        background-color: rgba(139, 92, 246, 0.2);
         border-radius: 15px 15px 15px 0;
-        margin-bottom:10px;
-        border-left: 3px solid #00ff9d;
-        animation: slideUp 0.5s ease;
+        border-right: 4px solid #b026ff;
+        box-shadow: 0 0 10px rgba(176, 38, 255, 0.2);
+    }
+    
+    /* Text Colors */
+    .stChatMessage {
+        color: #e9d5ff !important;
+    }
+    
+    /* ELM Title Animation */
+    .elm-title {
+        font-size: 3rem;
+        font-weight: 800;
+        text-align: center;
+        background: linear-gradient(90deg, #d8b4fe, #b026ff, #7c3aed);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+        animation: glow 3s infinite alternate;
+        text-shadow: 0 0 20px rgba(176, 38, 255, 0.5);
+    }
+    
+    .elm-subtitle {
+        text-align: center;
+        color: #c4b5fd;
+        margin-bottom: 30px;
+        font-size: 1.1rem;
+        animation: fadeIn 2s ease;
     }
     
     /* Animations */
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    @keyframes slideUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+    @keyframes glow {
+        from { text-shadow: 0 0 10px rgba(176, 38, 255, 0.5); }
+        to { text-shadow: 0 0 25px rgba(176, 38, 255, 0.9); }
     }
     
-    /* Branding */
-    .elm-title {
-        font-size: 2.5rem;
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Message Animation */
+    div[data-testid="stChatMessage"] {
+        animation: slideUp 0.4s ease forwards;
+    }
+    
+    /* Button Styling */
+    .stButton>button {
+        background: linear-gradient(90deg, #7c3aed, #b026ff);
+        color: white;
+        border: none;
+        border-radius: 8px;
         font-weight: bold;
-        color: #00ff9d;
-        text-align: center;
-        margin-bottom: 20px;
-        text-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 3. Branding Header ---
-st.markdown('<div class="elm-title">🌱 ELM</div>', unsafe_allow_html=True)
-st.markdown('<p style="text-align: center; color: #888;">Your Personal Intelligent Assistant</p>', unsafe_allow_html=True)
+st.markdown('<div class="elm-title">🟣 ELM</div>', unsafe_allow_html=True)
+st.markdown('<div class="elm-subtitle">Intelligent Assistant • Powered by Groq</div>', unsafe_allow_html=True)
 
-# --- 4. API Key Management (Secure) ---
-# Check if key exists in Secrets
-if "GROQ_API_KEY" in st.secrets:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-else:
-    st.error("⚠️ API Key not found. Please add it in Streamlit Secrets.")
+# --- 4. Secure API Key Check ---
+if "GROQ_API_KEY" not in st.secrets:
+    st.error("🔒 **Security Alert:** API Key not found in Streamlit Secrets.")
+    st.info("Please add `GROQ_API_KEY` to your app settings.")
     st.stop()
 
-# --- 5. Chat Logic ---
+# Initialize Groq Client
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+# --- 5. Chat History Management ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display Chat History with Custom HTML
+# Display Chat History
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.markdown(f'<div class="user-message">{message["content"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="ai-message">{message["content"]}</div>', unsafe_allow_html=True)
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# --- 6. Input Area ---
+# --- 6. Chat Logic ---
 if prompt := st.chat_input("Ask ELM anything..."):
-    # Add user message
+    # Add User Message
     st.session_state.messages.append({"role": "user", "content": prompt})
-    st.markdown(f'<div class="user-message">{prompt}</div>', unsafe_allow_html=True)
+    with st.chat_message("user"):
+        st.markdown(prompt)
     
-    # Generate Response
+    # Generate AI Response
     with st.chat_message("assistant"):
-        try:
-            # System Prompt for Personalization
-            system_prompt = "You are ELM, a professional AI assistant. Be concise, helpful, and solve real-world problems."
-            
-          # --- NEW CODE (Use this) ---
-stream = client.chat.completions.create(
-    model="llama-3.1-8b-instant",  ✅ Updated Model
-    messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages],
-    stream=True,
-)
-            
-            # Streaming Response (Typing Effect)
-            response = st.write_stream(stream)
-            st.session_state.messages.append({"role": "assistant", "content": response})
-            
-        except Exception as e:
-            st.error(f"ELM encountered an error: {e}")
+        with st.spinner("ELM is thinking..."):
+            try:
+                # System Prompt for Personality
+                system_prompt = """
+                You are ELM, a sophisticated AI assistant. 
+                Your theme is purple and dynamic. 
+                Be concise, helpful, and solve real-world problems.
+                Use formatting (bold, lists) to make answers clear.
+                """
+                
+                # Stream the response
+                stream = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",  # ✅ Updated Model
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        *st.session_state.messages
+                    ],
+                    stream=True,
+                )
+                
+                response = st.write_stream(stream)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                
+            except Exception as e:
+                st.error(f"⚠️ ELM Error: {str(e)}")
 
 # --- 7. Footer ---
 st.markdown("---")
-st.markdown('<p style="text-align: center; font-size: 0.8rem; color: #555;">Powered by ELM AI © 2024</p>', unsafe_allow_html=True)
-
+st.markdown('<p style="text-align: center; color: #6b21a8; font-size: 0.8rem;">© 2024 ELM AI Systems</p>', unsafe_allow_html=True)
