@@ -100,11 +100,12 @@ if prompt := st.chat_input("Ask ELM anything..."):
             # System Prompt for Personalization
             system_prompt = "You are ELM, a professional AI assistant. Be concise, helpful, and solve real-world problems."
             
-            stream = client.chat.completions.create(
-                model="llama3-8b-8192",
-                messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages],
-                stream=True, # Enables typing effect
-            )
+          # --- NEW CODE (Use this) ---
+stream = client.chat.completions.create(
+    model="llama-3.1-8b-instant",  ✅ Updated Model
+    messages=[{"role": "system", "content": system_prompt}, *st.session_state.messages],
+    stream=True,
+)
             
             # Streaming Response (Typing Effect)
             response = st.write_stream(stream)
@@ -116,3 +117,4 @@ if prompt := st.chat_input("Ask ELM anything..."):
 # --- 7. Footer ---
 st.markdown("---")
 st.markdown('<p style="text-align: center; font-size: 0.8rem; color: #555;">Powered by ELM AI © 2024</p>', unsafe_allow_html=True)
+
