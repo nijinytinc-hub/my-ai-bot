@@ -1,6 +1,5 @@
 import streamlit as st
 from groq import Groq
-import time
 
 # --- 1. Page Configuration ---
 st.set_page_config(
@@ -10,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. Custom CSS (Purple Theme & Animations) ---
+# --- 2. Custom CSS (Safe & Stable Purple Theme) ---
 st.markdown("""
     <style>
     /* Hide Default Streamlit Elements */
@@ -22,36 +21,6 @@ st.markdown("""
     .stApp {
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         color: #ffffff;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    /* Chat Input Container */
-    .stChatInputContainer {
-        background-color: rgba(48, 43, 99, 0.5);
-        border-radius: 15px;
-        padding: 10px;
-        border: 1px solid #b026ff;
-        box-shadow: 0 0 15px rgba(176, 38, 255, 0.3);
-    }
-    
-    /* Chat Bubbles - User */
-    .stChatMessage[data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: rgba(76, 29, 149, 0.4);
-        border-radius: 15px 15px 0 15px;
-        border-left: 4px solid #7c3aed;
-    }
-    
-    /* Chat Bubbles - AI (ELM) */
-    .stChatMessage[data-testid="stChatMessage"]:nth-child(even) {
-        background-color: rgba(139, 92, 246, 0.2);
-        border-radius: 15px 15px 15px 0;
-        border-right: 4px solid #b026ff;
-        box-shadow: 0 0 10px rgba(176, 38, 255, 0.2);
-    }
-    
-    /* Text Colors */
-    .stChatMessage {
-        color: #e9d5ff !important;
     }
     
     /* ELM Title Animation */
@@ -63,7 +32,6 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 10px;
-        animation: glow 3s infinite alternate;
         text-shadow: 0 0 20px rgba(176, 38, 255, 0.5);
     }
     
@@ -72,37 +40,21 @@ st.markdown("""
         color: #c4b5fd;
         margin-bottom: 30px;
         font-size: 1.1rem;
-        animation: fadeIn 2s ease;
     }
     
-    /* Animations */
-    @keyframes glow {
-        from { text-shadow: 0 0 10px rgba(176, 38, 255, 0.5); }
-        to { text-shadow: 0 0 25px rgba(176, 38, 255, 0.9); }
+    /* Chat Input Styling */
+    .stChatInputContainer {
+        background-color: rgba(48, 43, 99, 0.6);
+        border-radius: 15px;
+        border: 1px solid #7c3aed;
     }
     
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Message Animation */
-    div[data-testid="stChatMessage"] {
-        animation: slideUp 0.4s ease forwards;
-    }
-    
-    /* Button Styling */
-    .stButton>button {
-        background: linear-gradient(90deg, #7c3aed, #b026ff);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
+    /* Footer */
+    .footer {
+        text-align: center;
+        color: #6b21a8;
+        font-size: 0.8rem;
+        margin-top: 50px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -114,25 +66,31 @@ st.markdown('<div class="elm-subtitle">Intelligent Assistant • Powered by Groq
 # --- 4. Secure API Key Check ---
 if "GROQ_API_KEY" not in st.secrets:
     st.error("🔒 **Security Alert:** API Key not found in Streamlit Secrets.")
-    st.info("Please add `GROQ_API_KEY` to your app settings.")
+    st.info("Please add `GROQ_API_KEY` to your app settings in Streamlit Cloud.")
     st.stop()
 
 # Initialize Groq Client
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except Exception as e:
+    st.error(f"Failed to initialize client: {e}")
+    st.stop()
 
 # --- 5. Chat History Management ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display Chat History
+# Display Chat History (Using native st.chat_message for stability)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # --- 6. Chat Logic ---
 if prompt := st.chat_input("Ask ELM anything..."):
-    # Add User Message
+    # Add User Message to History
     st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display User Message
     with st.chat_message("user"):
         st.markdown(prompt)
     
@@ -143,7 +101,6 @@ if prompt := st.chat_input("Ask ELM anything..."):
                 # System Prompt for Personality
                 system_prompt = """
                 You are ELM, a sophisticated AI assistant. 
-                Your theme is purple and dynamic. 
                 Be concise, helpful, and solve real-world problems.
                 Use formatting (bold, lists) to make answers clear.
                 """
@@ -158,12 +115,14 @@ if prompt := st.chat_input("Ask ELM anything..."):
                     stream=True,
                 )
                 
+                # Write stream to chat bubble
                 response = st.write_stream(stream)
+                
+                # Save to history
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 
             except Exception as e:
                 st.error(f"⚠️ ELM Error: {str(e)}")
 
 # --- 7. Footer ---
-st.markdown("---")
-st.markdown('<p style="text-align: center; color: #6b21a8; font-size: 0.8rem;">© 2024 ELM AI Systems</p>', unsafe_allow_html=True)
+st.markdown('<div class="footer">© 2024 ELM AI Systems</div>', unsafe_allow_html=True)
